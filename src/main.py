@@ -1,16 +1,36 @@
 """FastAPI application entry point."""
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.config import settings
-from src.middleware.request_id import RequestIDMiddleware
-from src.middleware.logging_middleware import LoggingMiddleware
+
 from src.api import health
 from src.api.v1 import transcript
+from src.config import settings
+from src.middleware.logging_middleware import LoggingMiddleware
+from src.middleware.request_id import RequestIDMiddleware
 from src.utils.logger import get_logger
 
-
 logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    ## start
+    """Log application startup."""
+    logger.info(
+        "application_started",
+        version=settings.app_version,
+        host=settings.host,
+        port=settings.port,
+        log_level=settings.log_level,
+    )
+    yield
+
+    ## end
+    """Log application shutdown."""
+    logger.info("application_shutdown")
 
 
 # Create FastAPI application
@@ -20,6 +40,7 @@ app = FastAPI(
     version=settings.app_version,
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 
@@ -38,24 +59,6 @@ app.add_middleware(RequestIDMiddleware)
 # Include routers
 app.include_router(health.router)
 app.include_router(transcript.router)
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Log application startup."""
-    logger.info(
-        "application_started",
-        version=settings.app_version,
-        host=settings.host,
-        port=settings.port,
-        log_level=settings.log_level,
-    )
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Log application shutdown."""
-    logger.info("application_shutdown")
 
 
 @app.get("/", tags=["Root"])
