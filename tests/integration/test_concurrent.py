@@ -18,14 +18,14 @@ MOCK_TRANSCRIPT = [
 @pytest.fixture
 def mock_transcript_service():
     """Mock transcript service for concurrent tests."""
-    with patch("src.services.transcript_service.get_transcript") as mock:
-        mock.return_value = {
-            "video_id": VALID_VIDEO_ID,
-            "segments": MOCK_TRANSCRIPT,
-            "language": "en",
-            "is_generated": False,
-        }
-        yield mock
+    from unittest.mock import MagicMock
+    with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock_class:
+        mock_instance = mock_class.return_value
+        mock_instance.fetch.return_value = [
+            MagicMock(text=seg["text"], start=seg["start"], duration=seg["duration"])
+            for seg in MOCK_TRANSCRIPT
+        ]
+        yield mock_class
 
 
 @pytest.mark.asyncio

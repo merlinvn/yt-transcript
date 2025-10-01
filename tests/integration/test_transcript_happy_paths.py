@@ -23,8 +23,17 @@ MOCK_TRANSCRIPT = [
 @pytest.fixture
 def mock_youtube_api():
     """Mock youtube_transcript_api for happy path tests."""
-    with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock:
-        mock.get_transcript.return_value = MOCK_TRANSCRIPT
+    from unittest.mock import MagicMock
+    mock_raw_data = [
+        {"text": "We're no strangers to love", "start": 0.0, "duration": 2.5},
+        {"text": "You know the rules and so do I", "start": 2.5, "duration": 3.0},
+        {"text": "A full commitment's what I'm thinking of", "start": 5.5, "duration": 3.5},
+    ]
+    # Return tuple: (raw_data, language, language_code, is_generated)
+    mock_metadata = (mock_raw_data, "English", "en", False)
+    
+    with patch("src.services.transcript_service._fetch_transcript_sync") as mock:
+        mock.return_value = mock_metadata
         yield mock
 
 

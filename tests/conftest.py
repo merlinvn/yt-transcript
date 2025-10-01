@@ -1,15 +1,23 @@
 """Pytest configuration and shared fixtures."""
 
 import pytest
+import os
 from typing import AsyncGenerator
 from httpx import AsyncClient
 from fastapi import FastAPI
 
 
+# Set test environment variables before importing app
+os.environ["API_KEYS"] = "test-key-1,test-key-2,test-key-3"
+os.environ["LOG_LEVEL"] = "ERROR"  # Reduce noise in tests
+os.environ["TIMEOUT_SECONDS"] = "30"
+os.environ["MAX_RETRIES"] = "3"
+
+
 @pytest.fixture
 def test_api_key() -> str:
-    """Provide a test API key."""
-    return "test-api-key-12345"
+    """Provide a test API key that matches environment."""
+    return "test-key-1"
 
 
 @pytest.fixture

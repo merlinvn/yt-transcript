@@ -25,9 +25,13 @@ MOCK_TRANSCRIPT = [
 @pytest.fixture
 def mock_youtube_transcript():
     """Mock youtube_transcript_api responses."""
-    with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock:
-        mock.get_transcript.return_value = MOCK_TRANSCRIPT
-        yield mock
+    with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock_class:
+        mock_instance = mock_class.return_value
+        mock_instance.fetch.return_value = [
+            MagicMock(text="We're no strangers to love", start=0.0, duration=2.5),
+            MagicMock(text="You know the rules and so do I", start=2.5, duration=3.0),
+        ]
+        yield mock_class
 
 
 @pytest.mark.asyncio
@@ -149,9 +153,11 @@ class TestTranscriptContract:
     ):
         """TC-007: Non-existent video returns 404 Not Found."""
         from src.main import app
+        from youtube_transcript_api._errors import VideoUnavailable
         
-        with patch("src.services.transcript_service.YouTubeTranscriptApi.get_transcript") as mock:
-            mock.side_effect = Exception("Video not found")
+        with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock_class:
+            mock_instance = mock_class.return_value
+            mock_instance.fetch.side_effect = VideoUnavailable("Video not found")
             
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -170,9 +176,11 @@ class TestTranscriptContract:
     ):
         """TC-008: Video without transcript returns 404 with specific error."""
         from src.main import app
+        from youtube_transcript_api._errors import TranscriptsDisabled
         
-        with patch("src.services.transcript_service.YouTubeTranscriptApi.get_transcript") as mock:
-            mock.side_effect = Exception("Transcript not available")
+        with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock_class:
+            mock_instance = mock_class.return_value
+            mock_instance.fetch.side_effect = TranscriptsDisabled("video_id")
             
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
