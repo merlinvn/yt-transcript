@@ -1,0 +1,33 @@
+# Docker Compose for local development
+# Note: This is for local development only. Production deployments should use
+# orchestration-specific configurations (Kubernetes manifests, ECS task definitions, etc.)
+
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - API_KEYS=${API_KEYS:-test-key-1,test-key-2}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - TIMEOUT_SECONDS=${TIMEOUT_SECONDS:-30}
+      - MAX_RETRIES=${MAX_RETRIES:-3}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - APP_VERSION=1.0.0
+    env_file:
+      - .env
+    volumes:
+      # Optional: Mount source for development (hot reload)
+      # - ./src:/app/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped

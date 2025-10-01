@@ -473,18 +473,29 @@
       - Switch to appuser
       - HEALTHCHECK using /health endpoint
       - CMD: uvicorn src.main:app --host 0.0.0.0 --port 8000
+  - **Resource Limits** (example for production deployment):
+    ```yaml
+    Resources:
+      memory: 512Mi          # Soft limit for normal operation
+      memory_limit: 1Gi      # Hard limit to prevent OOM
+      cpu: 500m              # 0.5 CPU cores (500 millicores)
+    ```
   - Follow Dockerfile from research.md Section 9
   - **Files**: `Dockerfile`
 
 - [ ] **T031**: Create Docker ignore and compose files
   - File: `.dockerignore`
   - Exclude: tests/, .git/, .env, __pycache__/, *.pyc, .venv/
-  - Create `docker-compose.yml` (optional, for local dev):
+  - Create `docker-compose.yml` for local development:
     * Service: api
     * Build from Dockerfile
     * Environment variables from .env
     * Port mapping: 8000:8000
     * Volume for development (optional)
+  - **Note**: docker-compose.yml is for local development only.
+    Production deployments should use orchestration-specific
+    configurations (Kubernetes manifests, ECS task definitions,
+    Docker Swarm compose, etc.) with proper secrets management.
   - **Files**: `.dockerignore`, `docker-compose.yml`
 
 ### Documentation & Validation (Sequential)
