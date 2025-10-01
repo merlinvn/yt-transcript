@@ -6,7 +6,7 @@ Tests MUST fail initially (RED phase) before implementation.
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 # Test data
@@ -22,24 +22,12 @@ MOCK_TRANSCRIPT = [
 ]
 
 
-@pytest.fixture
-def mock_youtube_transcript():
-    """Mock youtube_transcript_api responses."""
-    with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock_class:
-        mock_instance = mock_class.return_value
-        mock_instance.fetch.return_value = [
-            MagicMock(text="We're no strangers to love", start=0.0, duration=2.5),
-            MagicMock(text="You know the rules and so do I", start=2.5, duration=3.0),
-        ]
-        yield mock_class
-
-
 @pytest.mark.asyncio
 class TestTranscriptContract:
     """Contract tests for transcript endpoint."""
 
     async def test_tc001_valid_raw_video_id(
-        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """TC-001: Valid raw video ID returns 200 with transcript data."""
         from src.main import app
@@ -63,7 +51,7 @@ class TestTranscriptContract:
         assert "request_id" in data["metadata"]
 
     async def test_tc002_valid_full_youtube_url(
-        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """TC-002: Valid full YouTube URL returns 200 with transcript data."""
         from src.main import app
@@ -81,7 +69,7 @@ class TestTranscriptContract:
         assert data["data"]["video_id"] == VALID_VIDEO_ID
 
     async def test_tc003_valid_short_youtube_url(
-        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """TC-003: Valid short YouTube URL returns 200 with transcript data."""
         from src.main import app
@@ -114,10 +102,10 @@ class TestTranscriptContract:
 
         assert response.status_code == 400
         data = response.json()
-        assert data["data"] is None
-        assert data["error"] is not None
-        assert data["error"]["code"] == "INVALID_VIDEO_ID"
-        assert "metadata" in data
+        assert data["detail"]["data"] is None
+        assert data["detail"]["error"] is not None
+        assert data["detail"]["error"]["code"] == "INVALID_VIDEO_ID"
+        assert "metadata" in data["detail"]
 
     async def test_tc005_missing_api_key(self, async_client: AsyncClient):
         """TC-005: Missing API key returns 401 Unauthorized."""
@@ -132,7 +120,7 @@ class TestTranscriptContract:
 
         assert response.status_code == 401
         data = response.json()
-        assert data["error"]["code"] == "INVALID_API_KEY"
+        assert data["detail"]["error"]["code"] == "INVALID_API_KEY"
 
     async def test_tc006_invalid_api_key(self, async_client: AsyncClient):
         """TC-006: Invalid API key returns 401 Unauthorized."""
@@ -169,7 +157,7 @@ class TestTranscriptContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert data["error"]["code"] == "VIDEO_NOT_FOUND"
+        assert data["detail"]["error"]["code"] == "VIDEO_NOT_FOUND"
 
     async def test_tc008_video_without_transcript(
         self, async_client: AsyncClient, test_api_key: str
@@ -192,10 +180,10 @@ class TestTranscriptContract:
 
         assert response.status_code == 404
         data = response.json()
-        assert data["error"]["code"] == "TRANSCRIPT_UNAVAILABLE"
+        assert data["detail"]["error"]["code"] == "TRANSCRIPT_UNAVAILABLE"
 
     async def test_tc009_concurrent_requests(
-        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """TC-009: Concurrent requests process independently."""
         from src.main import app
@@ -222,7 +210,7 @@ class TestTranscriptContract:
         assert len(set(request_ids)) == 10
 
     async def test_tc010_response_contains_request_id(
-        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """TC-010: Response metadata contains request_id."""
         from src.main import app

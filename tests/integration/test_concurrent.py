@@ -5,27 +5,10 @@ Tests from quickstart.md Scenario 9: concurrent request processing.
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import patch
 import asyncio
 
 
 VALID_VIDEO_ID = "dQw4w9WgXcQ"
-MOCK_TRANSCRIPT = [
-    {"text": "Test transcript", "start": 0.0, "duration": 2.0},
-]
-
-
-@pytest.fixture
-def mock_transcript_service():
-    """Mock transcript service for concurrent tests."""
-    from unittest.mock import MagicMock
-    with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock_class:
-        mock_instance = mock_class.return_value
-        mock_instance.fetch.return_value = [
-            MagicMock(text=seg["text"], start=seg["start"], duration=seg["duration"])
-            for seg in MOCK_TRANSCRIPT
-        ]
-        yield mock_class
 
 
 @pytest.mark.asyncio
@@ -33,7 +16,7 @@ class TestConcurrentRequests:
     """Integration tests for concurrent request handling."""
 
     async def test_scenario_9_concurrent_requests(
-        self, async_client: AsyncClient, test_api_key: str, mock_transcript_service
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """Scenario 9: 10 concurrent requests all process successfully."""
         from src.main import app
@@ -61,7 +44,7 @@ class TestConcurrentRequests:
         assert all(r.json()["error"] is None for r in responses)
 
     async def test_unique_request_ids(
-        self, async_client: AsyncClient, test_api_key: str, mock_transcript_service
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """Each concurrent request has unique request_id."""
         from src.main import app
@@ -87,7 +70,7 @@ class TestConcurrentRequests:
         assert len(set(request_ids)) == 10, "Request IDs should be unique"
 
     async def test_no_race_conditions(
-        self, async_client: AsyncClient, test_api_key: str, mock_transcript_service
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """No race conditions or data corruption in concurrent requests."""
         from src.main import app
@@ -122,7 +105,7 @@ class TestConcurrentRequests:
             assert len(data["metadata"]["request_id"]) > 0
 
     async def test_average_response_time(
-        self, async_client: AsyncClient, test_api_key: str, mock_transcript_service
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """Average response time under load < 5 seconds."""
         from src.main import app
@@ -153,7 +136,7 @@ class TestConcurrentRequests:
         assert avg_time < 5.0, f"Average response time {avg_time:.2f}s exceeds 5s"
 
     async def test_different_videos_concurrent(
-        self, async_client: AsyncClient, test_api_key: str, mock_transcript_service
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """Concurrent requests for different videos work independently."""
         from src.main import app
@@ -176,6 +159,12 @@ class TestConcurrentRequests:
         # All should process (success or failure)
         assert len(responses) == 5
         
-        # Each response should have unique request ID
-        request_ids = [r.json()["metadata"]["request_id"] for r in responses]
+        # Each response should have unique request ID (in metadata for success, detail.metadata for errors)
+        request_ids = []
+        for r in responses:
+            data = r.json()
+            if r.status_code == 200:
+                request_ids.append(data["metadata"]["request_id"])
+            else:
+                request_ids.append(data["detail"]["metadata"]["request_id"])
         assert len(set(request_ids)) == 5

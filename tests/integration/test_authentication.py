@@ -5,26 +5,9 @@ Tests authentication middleware and API key validation logic.
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from unittest.mock import patch
 
 
 VALID_VIDEO_ID = "dQw4w9WgXcQ"
-MOCK_TRANSCRIPT = [
-    {"text": "Test transcript", "start": 0.0, "duration": 2.0},
-]
-
-
-@pytest.fixture
-def mock_transcript_service():
-    """Mock transcript service for auth tests."""
-    from unittest.mock import MagicMock
-    with patch("src.services.transcript_service.YouTubeTranscriptApi") as mock_class:
-        mock_instance = mock_class.return_value
-        mock_instance.fetch.return_value = [
-            MagicMock(text=seg["text"], start=seg["start"], duration=seg["duration"])
-            for seg in MOCK_TRANSCRIPT
-        ]
-        yield mock_class
 
 
 @pytest.mark.asyncio
@@ -32,7 +15,7 @@ class TestAuthentication:
     """Integration tests for API key authentication."""
 
     async def test_valid_api_key_allows_access(
-        self, async_client: AsyncClient, test_api_key: str, mock_transcript_service
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api
     ):
         """Valid API key allows access to protected endpoint."""
         from src.main import app
@@ -64,7 +47,7 @@ class TestAuthentication:
 
         assert response.status_code == 401
         data = response.json()
-        assert data["error"]["code"] == "INVALID_API_KEY"
+        assert data["detail"]["error"]["code"] == "INVALID_API_KEY"
 
     async def test_missing_api_key_denies_access(self, async_client: AsyncClient):
         """Missing API key header returns 401 Unauthorized."""
@@ -80,7 +63,7 @@ class TestAuthentication:
         assert response.status_code == 401
 
     async def test_multiple_valid_api_keys(
-        self, async_client: AsyncClient, test_api_keys: str, mock_transcript_service
+        self, async_client: AsyncClient, test_api_keys: str, mock_youtube_transcript_api
     ):
         """Multiple valid API keys all work."""
         from src.main import app
@@ -100,7 +83,7 @@ class TestAuthentication:
             assert response.status_code == 200, f"Key '{key}' should be valid"
 
     async def test_api_key_not_logged_plaintext(
-        self, async_client: AsyncClient, test_api_key: str, mock_transcript_service, caplog
+        self, async_client: AsyncClient, test_api_key: str, mock_youtube_transcript_api, caplog
     ):
         """API keys should not be logged in plaintext."""
         from src.main import app
